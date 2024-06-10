@@ -48,9 +48,14 @@ func getTasks(writer http.ResponseWriter, request *http.Request) {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
-	writer.Write(response)
+	_, err = writer.Write(response)
+	if err != nil {
+		fmt.Println("main.getTasks", err.Error())
+		return
+	}
 }
 
 func addTask(writer http.ResponseWriter, request *http.Request) {
@@ -67,6 +72,11 @@ func addTask(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
+	if _, ok := tasks[task.ID]; ok {
+		http.Error(writer, "The task exists", http.StatusBadRequest)
+		return
+	}
+
 	tasks[task.ID] = task
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusCreated)
@@ -77,31 +87,35 @@ func getTaskById(writer http.ResponseWriter, request *http.Request) {
 
 	task, ok := tasks[id]
 	if !ok {
-		http.Error(writer, "Task not found", http.StatusNoContent)
+		http.Error(writer, "Task not found", http.StatusBadRequest)
 		return
 	}
 
 	response, err := json.Marshal(task)
 	if err != nil {
-		http.Error(writer, err.Error(), http.StatusBadRequest)
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
-	writer.Write(response)
+	_, err = writer.Write(response)
+
+	if err != nil {
+		fmt.Println("main.getTaskById", err.Error())
+	}
 }
 
 func deleteTaskById(writer http.ResponseWriter, request *http.Request) {
 	id := chi.URLParam(request, "id")
 
-	if _, ok := tasks[id]; ok {
-		delete(tasks, id)
-		writer.WriteHeader(http.StatusOK)
+	if _, ok := tasks[id]; !ok {
+		http.Error(writer, "Task not found", http.StatusBadRequest)
 		return
 	}
 
-	http.Error(writer, "Task not found", http.StatusBadRequest)
+	delete(tasks, id)
+	writer.WriteHeader(http.StatusOK)
 }
 
 func main() {
